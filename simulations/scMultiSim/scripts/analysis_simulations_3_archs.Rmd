@@ -1,0 +1,538 @@
+---
+title: "Analyze simulations 3 archetypes"
+author: "Salvatore ARIlite"
+date: "28/09/2023"
+output: html_document
+---
+
+```{r}
+library(tidyverse)
+library(matrixStats)
+library(RColorBrewer)
+source("utils.R")
+library(patchwork)
+
+extrafont::loadfonts(quiet = T)
+
+FONTSIZE = 16
+
+methods_colors <- brewer.pal(name = "Set1",n =6)
+names(methods_colors) <- c("VAE", "JIVE", "intNMF", "MOFA", "Keller et al", "MIDAA")
+
+```
+
+# Branching structure analysis
+
+```{r}
+dir <- "/group/sottoriva/salvatore.milite/multideepAA_analysis/simulations/scMultiSim/data/phyla3_no_batch_trajectory/"
+
+data_all <- load_all_input(dir)
+
+data_VAE <- load_all_VAE(dir)
+
+data_deepAA <- load_all_deepAA(dir)
+
+data_jive <- load_all_jive(dir)
+
+data_intNMF <- load_all_NMF(dir)
+
+data_MOFA <- load_all_MOFA(dir)
+
+```
+
+
+### deep AA vs linear AA 
+
+
+```{r}
+
+data_VAE_AA <- lapply(1:length(data_VAE$AA), function(i) {
+  
+  if(is.null(data_VAE$AA[[i]]$betas)) return(NULL)
+ 
+  cif_s <- data_all[[i]]$.options$diff.cif.fraction
+  
+  recon_rna <- t(data_VAE$AA[[i]]$betas %*% t(data_all[[i]]$counts))
+  recon_atac <- t(data_VAE$AA[[i]]$betas %*% t(data_all[[i]]$atac_counts))
+
+  extreme_points_rna <- get_extreme_states_from_trajectory_old(data_all[[i]]$counts, data_all[[i]]$cell_meta, data_all[[i]]$tree)  
+  extreme_points_atac <- get_extreme_states_from_trajectory_old(data_all[[i]]$atac_counts, data_all[[i]]$cell_meta, data_all[[i]]$tree) 
+  
+  recon_atac[is.na(recon_atac)] <- 0
+  recon_rna[is.na(recon_rna)] <- 0
+  extreme_points_atac[is.na(extreme_points_atac)] <- 0
+  extreme_points_rna[is.na(extreme_points_rna)] <- 0
+  
+  rownames(extreme_points_atac) <- paste0("cell", 1:nrow(extreme_points_atac))
+  recon_rna <- rename_cols_based_on_distance(extreme_points_rna,recon_rna)[,sort(colnames(extreme_points_rna))]
+  recon_atac <- rename_cols_based_on_distance(extreme_points_atac,recon_atac)[,sort(colnames(extreme_points_atac))]
+  
+  error_rna <- sqrt((recon_rna - extreme_points_rna)^2) %>% mean(na.rm = T)
+  error_atac <- sqrt((recon_atac - extreme_points_atac)^2) %>% mean(na.rm = T)
+
+  return(data.frame(dist_rna = error_rna, dist_atac = error_atac, tool = "VAE", cif_s = cif_s))
+}) %>% do.call(rbind,.)
+
+
+
+data_MOFA_AA <- lapply(1:length(data_MOFA$AA), function(i) {
+  if(is.null(data_MOFA$AA[[i]]$betas)) return(NULL)
+ 
+  cif_s <- data_all[[i]]$.options$diff.cif.fraction
+  
+  recon_rna <- t(data_MOFA$AA[[i]]$betas %*% t(data_all[[i]]$counts))
+  recon_atac <- t(data_MOFA$AA[[i]]$betas %*% t(data_all[[i]]$atac_counts))
+  
+  extreme_points_rna <- get_extreme_states_from_trajectory_old(data_all[[i]]$counts, data_all[[i]]$cell_meta, data_all[[i]]$tree)  
+  extreme_points_atac <- get_extreme_states_from_trajectory_old(data_all[[i]]$atac_counts, data_all[[i]]$cell_meta, data_all[[i]]$tree) 
+  
+  recon_atac[is.na(recon_atac)] <- 0
+  recon_rna[is.na(recon_rna)] <- 0
+  extreme_points_atac[is.na(extreme_points_atac)] <- 0
+  extreme_points_rna[is.na(extreme_points_rna)] <- 0
+  
+  rownames(extreme_points_atac) <- paste0("cell", 1:nrow(extreme_points_atac))
+  recon_rna <- rename_cols_based_on_distance(extreme_points_rna,recon_rna)[,sort(colnames(extreme_points_rna))]
+  recon_atac <- rename_cols_based_on_distance(extreme_points_atac,recon_atac)[,sort(colnames(extreme_points_atac))]
+  
+  error_rna <- sqrt((recon_rna - extreme_points_rna)^2) %>% mean()
+  error_atac <- sqrt((recon_atac - extreme_points_atac)^2) %>% mean()
+
+  return(data.frame(dist_rna = error_rna, dist_atac = error_atac, tool = "MOFA", cif_s = cif_s))
+}) %>% do.call(rbind,.)
+
+
+data_jive_AA <- lapply(1:length(data_jive$AA), function(i) {
+  if(is.null(data_jive$AA[[i]]$betas)) return(NULL)
+ 
+  cif_s <- data_all[[i]]$.options$diff.cif.fraction
+  
+  recon_rna <- t(data_jive$AA[[i]]$betas %*% t(data_all[[i]]$counts))
+  recon_atac <- t(data_jive$AA[[i]]$betas %*% t(data_all[[i]]$atac_counts))
+ 
+  extreme_points_rna <- get_extreme_states_from_trajectory_old(data_all[[i]]$counts, data_all[[i]]$cell_meta, data_all[[i]]$tree) 
+  extreme_points_atac <- get_extreme_states_from_trajectory_old(data_all[[i]]$atac_counts, data_all[[i]]$cell_meta, data_all[[i]]$tree) 
+   recon_atac[is.na(recon_atac)] <- 0
+  recon_rna[is.na(recon_rna)] <- 0
+  extreme_points_atac[is.na(extreme_points_atac)] <- 0
+  extreme_points_rna[is.na(extreme_points_rna)] <- 0
+  
+  rownames(extreme_points_atac) <- paste0("cell", 1:nrow(extreme_points_atac))
+  recon_rna <- rename_cols_based_on_distance(extreme_points_rna,recon_rna)[,sort(colnames(extreme_points_rna))]
+  recon_atac <- rename_cols_based_on_distance(extreme_points_atac,recon_atac)[,sort(colnames(extreme_points_atac))]
+  
+  error_rna <- sqrt((recon_rna - extreme_points_rna)^2) %>% mean()
+  error_atac <- sqrt((recon_atac - extreme_points_atac)^2) %>% mean()
+
+  return(data.frame(dist_rna = error_rna, dist_atac = error_atac, tool = "JIVE", cif_s = cif_s))
+}) %>% do.call(rbind,.)
+
+
+data_intNMF_AA <- lapply(1:length(data_intNMF$AA), function(i) {
+  if(is.null(data_intNMF$AA[[i]]$betas)) return(NULL)
+ 
+  cif_s <- data_all[[i]]$.options$diff.cif.fraction
+  
+  recon_rna <- t(data_intNMF$AA[[i]]$betas %*% t(data_all[[i]]$counts))
+  recon_atac <- t(data_intNMF$AA[[i]]$betas %*% t(data_all[[i]]$atac_counts))
+  
+  extreme_points_rna <- get_extreme_states_from_trajectory_old(data_all[[i]]$counts, data_all[[i]]$cell_meta, data_all[[i]]$tree)
+  extreme_points_atac <- get_extreme_states_from_trajectory_old(data_all[[i]]$atac_counts, data_all[[i]]$cell_meta, data_all[[i]]$tree) 
+  
+  recon_atac[is.na(recon_atac)] <- 0
+  recon_rna[is.na(recon_rna)] <- 0
+  extreme_points_atac[is.na(extreme_points_atac)] <- 0
+  extreme_points_rna[is.na(extreme_points_rna)] <- 0
+  
+  rownames(extreme_points_atac) <- paste0("cell", 1:nrow(extreme_points_atac))
+  recon_rna <- rename_cols_based_on_distance(extreme_points_rna,recon_rna)[,sort(colnames(extreme_points_rna))]
+  recon_atac <- rename_cols_based_on_distance(extreme_points_atac,recon_atac)[,sort(colnames(extreme_points_atac))]
+  
+  error_rna <- sqrt((recon_rna - extreme_points_rna)^2) %>% mean()
+  error_atac <- sqrt((recon_atac - extreme_points_atac)^2) %>% mean()
+
+  return(data.frame(dist_rna = error_rna, dist_atac = error_atac, tool = "intNMF", cif_s = cif_s))
+  
+}) %>% do.call(rbind,.)
+
+data_deep_AA_fix <- lapply(1:length(data_deepAA$AA_Zfix), function(i) {
+  if(is.null(data_deepAA$AA_Zfix[[i]]$B)) return(NULL)
+ 
+  cif_s <- data_all[[i]]$.options$diff.cif.fraction
+  
+  
+  
+  recon_rna <- t(data_deepAA$AA_Zfix[[i]]$B %*% t(data_all[[i]]$counts))
+  recon_atac <- t(data_deepAA$AA_Zfix[[i]]$B %*% t(data_all[[i]]$atac_counts))
+  
+  extreme_points_rna <- get_extreme_states_from_trajectory_old(data_all[[i]]$counts, data_all[[i]]$cell_meta, data_all[[i]]$tree) 
+  extreme_points_atac <- get_extreme_states_from_trajectory_old(data_all[[i]]$atac_counts, data_all[[i]]$cell_meta, data_all[[i]]$tree) 
+  
+  recon_atac[is.na(recon_atac)] <- 0
+  recon_rna[is.na(recon_rna)] <- 0
+  extreme_points_atac[is.na(extreme_points_atac)] <- 0
+  extreme_points_rna[is.na(extreme_points_rna)] <- 0
+  
+  rownames(extreme_points_atac) <- paste0("cell", 1:nrow(extreme_points_atac))
+  recon_rna <- rename_cols_based_on_distance(extreme_points_rna,recon_rna)[,sort(colnames(extreme_points_rna))]
+  recon_atac <- rename_cols_based_on_distance(extreme_points_atac,recon_atac)[,sort(colnames(extreme_points_atac))]
+  
+  error_rna <- sqrt((recon_rna - extreme_points_rna)^2) %>% mean()
+  error_atac <- sqrt((recon_atac - extreme_points_atac)^2) %>% mean()
+
+  return(data.frame(dist_rna = error_rna, dist_atac = error_atac, tool = "Keller et al", cif_s = cif_s))
+}) %>% do.call(rbind,.)
+
+data_deep_AA_free <- lapply(1:length(data_deepAA$AA_Zfree), function(i) {
+  if(is.null(data_deepAA$AA_Zfree[[i]]$B)) return(NULL)
+ 
+  cif_s <- data_all[[i]]$.options$diff.cif.fraction
+  
+  recon_rna <- t(data_deepAA$AA_Zfree[[i]]$B %*% t(data_all[[i]]$counts))
+  recon_atac <- t(data_deepAA$AA_Zfree[[i]]$B %*% t(data_all[[i]]$atac_counts))
+  
+  extreme_points_rna <- get_extreme_states_from_trajectory_old(data_all[[i]]$counts, data_all[[i]]$cell_meta, data_all[[i]]$tree)  
+  extreme_points_atac <- get_extreme_states_from_trajectory_old(data_all[[i]]$atac_counts, data_all[[i]]$cell_meta, data_all[[i]]$tree)  
+  recon_atac[is.na(recon_atac)] <- 0
+  recon_rna[is.na(recon_rna)] <- 0
+  extreme_points_atac[is.na(extreme_points_atac)] <- 0
+  extreme_points_rna[is.na(extreme_points_rna)] <- 0
+  
+  rownames(extreme_points_atac) <- paste0("cell", 1:nrow(extreme_points_atac))
+  recon_rna <- rename_cols_based_on_distance(extreme_points_rna,recon_rna)[,sort(colnames(extreme_points_rna))]
+  recon_atac <- rename_cols_based_on_distance(extreme_points_atac,recon_atac)[,sort(colnames(extreme_points_atac))]
+  
+  
+  error_rna <- sqrt((recon_rna - extreme_points_rna)^2) %>% mean()
+  error_atac <- sqrt((recon_atac - extreme_points_atac)^2) %>% mean()
+
+  return(data.frame(dist_rna = error_rna, dist_atac = error_atac, tool = "MIDAA", cif_s = cif_s))
+}) %>% do.call(rbind,.)
+
+
+plot_df_AA_traj <- do.call(rbind, list( data_MOFA_AA,data_jive_AA,  data_intNMF_AA, data_deep_AA_free, data_VAE_AA))
+```
+
+
+```{r}
+
+p1_traj <- plot_df_AA_traj %>% ggplot(., aes(y = dist_rna, x = tidytext::reorder_within(tool, dist_rna, cif_s),fill = tool)) + geom_boxplot() + 
+  facet_wrap(~paste0("diff.cif.frac = ",cif_s), ncol = 3,  scales = "free_x") + theme_classic() + Seurat::RotatedAxis() + xlab("")  +  ylab("MSE(RNA)") + 
+    tidytext::scale_x_reordered() + scale_fill_manual("Tool", values = methods_colors) + theme(text = element_text(family = "Arial", size = FONTSIZE + 3), legend.position = "right", axis.text.x = element_blank(), axis.ticks.x = element_blank())
+ 
+
+p2_traj <- plot_df_AA_traj %>% ggplot(., aes(y = dist_atac, x = tidytext::reorder_within(tool, dist_atac, cif_s),fill = tool)) + geom_boxplot() +
+  facet_wrap(~paste0("diff.cif.frac = ",cif_s), ncol = 3, scales = "free_x") + theme_classic() + Seurat::RotatedAxis() + xlab("")  + ylab("MSE(ATAC)") + 
+  tidytext::scale_x_reordered()  + scale_fill_manual("Tool", values = methods_colors) + 
+  theme(text = element_text(family = "Arial", size = FONTSIZE + 3), legend.position = "right", axis.text.x = element_blank(), axis.ticks.x = element_blank())
+
+ggsave("../plots/phyla3_no_batch_trajectory_rna_atac_dist.png", ggpubr::ggarrange(p1_traj, p2_traj, ncol = 1, common.legend = TRUE, legend = "right") ,
+       device = "png", height = 8, width = 10, dpi = 300)
+ggsave("../plots/phyla3_no_batch_trajectory_rna_atac_dist.pdf",ggpubr::ggarrange(p1_traj, p2_traj, ncol = 1, common.legend = TRUE, legend = "right"),
+       device = "pdf", height = 8, width = 10, dpi = 300)
+```
+
+```{r}
+plot_df_AA_traj2 <- do.call(rbind, list( data_deep_AA_fix, data_deep_AA_free ))
+```
+
+```{r}
+
+p_traj2 <- plot_df_AA_traj2 %>% ggplot(., aes(y = dist_rna, x = tidytext::reorder_within(tool, dist_rna, cif_s),fill = tool)) + geom_boxplot() + 
+  facet_wrap(~paste0("diff.cif.frac = ",cif_s), ncol = 3,  scales = "free_x") + theme_classic() + Seurat::RotatedAxis() + xlab("")  +  ylab("MSE(RNA)") + 
+    tidytext::scale_x_reordered() + scale_fill_manual("Tool", values = methods_colors) + theme(text = element_text(family = "Arial", size = FONTSIZE + 3), legend.position = "right", axis.text.x = element_blank(), axis.ticks.x = element_blank())
+ 
+
+p2_traj2 <- plot_df_AA_traj2 %>% ggplot(., aes(y = dist_atac, x = tidytext::reorder_within(tool, dist_atac, cif_s),fill = tool)) + geom_boxplot() +
+  facet_wrap(~paste0("diff.cif.frac = ",cif_s), ncol = 3, scales = "free_x") + theme_classic() + Seurat::RotatedAxis() + xlab("")  + ylab("MSE(ATAC)") + 
+  tidytext::scale_x_reordered()  + scale_fill_manual("Tool", values = methods_colors) + 
+  theme(text = element_text(family = "Arial", size = FONTSIZE + 3), legend.position = "right", axis.text.x = element_blank(), axis.ticks.x = element_blank())
+
+
+ggpubr::ggarrange(p_traj2, p2_traj2, ncol = 1, common.legend = TRUE, legend = "bottom") %>% 
+  saveRDS("../plots/phyla3_no_batch_trajectory_rna_atac_dist_keller_vs_MIDAA.rds")
+
+
+```
+
+
+# Linear Pareto structure analysis
+
+```{r}
+
+data_all <- load_all_input()
+
+data_VAE <- load_all_VAE()
+
+data_deepAA <- load_all_deepAA()
+
+data_jive <- load_all_jive()
+
+data_intNMF <- load_all_NMF()
+
+
+data_MOFA <- load_all_MOFA()
+
+```
+
+
+### deep AA vs linear AA 
+
+
+```{r}
+
+data_VAE_AA <- lapply(1:length(data_VAE$AA), function(i) {
+  if(is.null(data_VAE$AA[[i]]$alphas)) return(NULL)
+  data_all[[i]]$A_true <- as_tibble(data_all[[i]]$A_true)
+  cif_s <- data_all[[i]]$.options$diff.cif.fraction
+  colnames(data_all[[i]]$A_true) <- paste0("arch", 1:ncol(data_all[[i]]$A_true))
+  obj <- rename_cols_based_on_distance(data_all[[i]]$A_true,as_tibble(data_VAE$AA[[i]]$alphas))
+  return(data.frame(dist = compute_euclidean_distance_df(data_all[[i]]$A_true,obj), ARI = compute_ARI_df(data_all[[i]]$A_true,obj), tool = "VAE", cif_s = cif_s))
+}) %>% do.call(rbind,.)
+
+
+
+data_MOFA_AA <- lapply(1:length(data_MOFA$AA), function(i) {
+  if(is.null(data_MOFA$AA[[i]]$alphas)) return(NULL)
+  cif_s <- data_all[[i]]$.options$diff.cif.fraction
+  data_all[[i]]$A_true <- as_tibble(data_all[[i]]$A_true)
+  colnames(data_all[[i]]$A_true) <- paste0("arch", 1:ncol(data_all[[i]]$A_true))
+  obj <- rename_cols_based_on_distance(data_all[[i]]$A_true,as_tibble(data_MOFA$AA[[i]]$alphas))
+
+  return(data.frame(dist = compute_euclidean_distance_df(data_all[[i]]$A_true,obj), ARI = compute_ARI_df(data_all[[i]]$A_true,obj), tool = "MOFA", cif_s = cif_s))
+}) %>% do.call(rbind,.)
+
+
+data_jive_AA <- lapply(1:length(data_jive$AA), function(i) {
+  if(is.null(data_jive$AA[[i]]$alphas)) return(NULL)
+  cif_s <- data_all[[i]]$.options$diff.cif.fraction
+  data_all[[i]]$A_true <- as_tibble(data_all[[i]]$A_true)
+  colnames(data_all[[i]]$A_true) <- paste0("arch", 1:ncol(data_all[[i]]$A_true))
+  obj <- rename_cols_based_on_distance(data_all[[i]]$A_true,as_tibble(data_jive$AA[[i]]$alphas))
+  return(data.frame(dist = compute_euclidean_distance_df(data_all[[i]]$A_true,obj), ARI = compute_ARI_df(data_all[[i]]$A_true,obj), tool = "JIVE", cif_s = cif_s))
+}) %>% do.call(rbind,.)
+
+
+data_intNMF_AA <- lapply(1:length(data_intNMF$AA), function(i) {
+  if(is.null(data_intNMF$AA[[i]]$alphas)) return(NULL)
+  cif_s <- data_all[[i]]$.options$diff.cif.fraction
+  data_all[[i]]$A_true <- as_tibble(data_all[[i]]$A_true)
+  colnames(data_all[[i]]$A_true) <- paste0("arch", 1:ncol(data_all[[i]]$A_true))
+  obj <- rename_cols_based_on_distance(data_all[[i]]$A_true,as_tibble(data_intNMF$AA[[i]]$alphas))
+  
+  return(data.frame(dist =compute_euclidean_distance_df(data_all[[i]]$A_true,obj), ARI = compute_ARI_df(data_all[[i]]$A_true,obj), tool = "intNMF", cif_s = cif_s))
+}) %>% do.call(rbind,.)
+
+data_deep_AA_fix <- lapply(1:length(data_deepAA$AA_Zfix), function(i) {
+  if(is.null(data_deepAA$AA_Zfix[[i]]$A)) return(NULL)
+  cif_s <- data_all[[i]]$.options$diff.cif.fraction
+  data_all[[i]]$A_true <- as_tibble(data_all[[i]]$A_true)
+  colnames(data_all[[i]]$A_true) <- paste0("arch", 1:ncol(data_all[[i]]$A_true))
+  obj <- rename_cols_based_on_distance(data_all[[i]]$A_true,as_tibble(data_deepAA$AA_Zfix[[i]]$A))
+
+  return(data.frame(dist = compute_euclidean_distance_df(data_all[[i]]$A_true,obj), ARI = compute_ARI_df(data_all[[i]]$A_true,obj), tool = "Keller et al", cif_s = cif_s))
+}) %>% do.call(rbind,.)
+
+data_deep_AA_free <- lapply(1:length(data_deepAA$AA_Zfree), function(i) {
+  if(is.null(data_deepAA$AA_Zfree[[i]]$A)) return(NULL)
+  cif_s <- data_all[[i]]$.options$diff.cif.fraction
+  data_all[[i]]$A_true <- as_tibble(data_all[[i]]$A_true)
+  colnames(data_all[[i]]$A_true) <- paste0("arch", 1:ncol(data_all[[i]]$A_true))
+  obj <- rename_cols_based_on_distance(data_all[[i]]$A_true,as_tibble(data_deepAA$AA_Zfree[[i]]$A))
+  return(dist = data.frame(dist = compute_euclidean_distance_df(data_all[[i]]$A_true,obj), ARI = compute_ARI_df(data_all[[i]]$A_true,obj), tool = "MIDAA", cif_s = cif_s))
+}) %>% do.call(rbind,.)
+
+
+plot_df_AA <- do.call(rbind, list(data_VAE_AA, data_MOFA_AA,data_jive_AA,  data_intNMF_AA, data_deep_AA_free))
+```
+
+
+```{r}
+
+p1_linear_pareto <- plot_df_AA %>% ggplot(., aes(y = dist, x = tidytext::reorder_within(tool, dist, cif_s),fill = reorder(tool, dist))) + geom_boxplot() + facet_wrap(~paste0("diff.cif.frac = ",cif_s), ncol = 3, scales = "free_x") + 
+  theme_classic() + Seurat::RotatedAxis() +
+  scale_fill_brewer("Tool", palette = "Set1") + xlab("") + ylab("MSE") + 
+    tidytext::scale_x_reordered()  + scale_fill_manual("Tool", values = methods_colors) + 
+  theme(text = element_text(family = "Arial", size = FONTSIZE + 3),  legend.position = "right", axis.text.x = element_blank(), axis.ticks.x = element_blank())
+
+p2_linear_pareto <- plot_df_AA %>% ggplot(., aes(y = ARI, x = tidytext::reorder_within(tool, ARI, cif_s),fill = reorder(tool, ARI))) + geom_boxplot() + facet_wrap(~paste0("diff.cif.frac = ",cif_s), ncol = 3, scales = "free_x") + 
+  theme_classic() + Seurat::RotatedAxis() + scale_fill_manual("Tool", values = methods_colors) + xlab("") + ylab("ARI") + 
+    tidytext::scale_x_reordered()  + scale_fill_manual("Tool", values = methods_colors) + 
+  theme(text = element_text(family = "Arial", size = FONTSIZE + 3),  legend.position = "right", axis.text.x = element_blank(), axis.ticks.x = element_blank())
+
+
+ggsave("../plots/phyla3_no_batch_pareto_rna_atac_dist.png",
+       ggpubr::ggarrange(p1_linear_pareto, p2_linear_pareto, ncol = 1, common.legend = TRUE, legend = "right"),
+       device = "png", height = 8, width = 10, dpi = 300)
+ggsave("../plots/phyla3_no_batch_pareto_rna_atac_dist.pdf",
+       ggpubr::ggarrange(p1_linear_pareto, p2_linear_pareto, ncol = 1, common.legend = TRUE, legend = "right") ,
+       device = "pdf", height = 8, width = 10, dpi = 300)
+```
+```{r}
+plot_df_AA2 <- do.call(rbind, list( data_deep_AA_fix, data_deep_AA_free ))
+```
+
+```{r}
+
+p1_linear_pareto2 <- plot_df_AA2 %>% ggplot(., aes(y = dist, x = tidytext::reorder_within(tool, dist, cif_s),fill = tool)) + geom_boxplot() + 
+  facet_wrap(~paste0("diff.cif.frac = ",cif_s), ncol = 3,  scales = "free_x") + theme_classic() + Seurat::RotatedAxis() + xlab("")  +  ylab("MSE") + 
+    tidytext::scale_x_reordered() + scale_fill_manual("Tool", values = methods_colors) + theme(text = element_text(family = "Arial", size = FONTSIZE + 3), legend.position = "right", axis.text.x = element_blank(), axis.ticks.x = element_blank())
+ 
+
+p2_linear_pareto2 <- plot_df_AA2 %>% ggplot(., aes(y = ARI, x = tidytext::reorder_within(tool, ARI, cif_s),fill = tool)) + geom_boxplot() +
+  facet_wrap(~paste0("diff.cif.frac = ",cif_s), ncol = 3, scales = "free_x") + theme_classic() + Seurat::RotatedAxis() + xlab("")  + ylab("ARI") + 
+  tidytext::scale_x_reordered()  + scale_fill_manual("Tool", values = methods_colors) + 
+  theme(text = element_text(family = "Arial", size = FONTSIZE + 3), legend.position = "right", axis.text.x = element_blank(), axis.ticks.x = element_blank())
+
+ggpubr::ggarrange(p1_linear_pareto2, p2_linear_pareto2, ncol = 1, common.legend = TRUE, legend = "bottom") %>% saveRDS("../plots/phyla3_no_batch_pareto_rna_atac_dist_keller_vs_MIDAA.rds")
+
+```
+
+# Non-Linear Pareto structure analysis
+
+```{r}
+
+dir <- "/group/sottoriva/salvatore.milite/multideepAA_analysis/simulations/scMultiSim/data/phyla3_no_batch_nlpareto/"
+
+
+data_all <- load_all_input(dir)
+
+data_VAE <- load_all_VAE(dir)
+
+data_deepAA <- load_all_deepAA(dir)
+
+data_jive <- load_all_jive(dir)
+
+data_intNMF <- load_all_NMF(dir)
+
+data_MOFA <- load_all_MOFA(dir)
+
+```
+
+### deep AA vs linear AA 
+
+
+```{r}
+
+data_VAE_AA <- lapply(1:length(data_VAE$AA), function(i) {
+  if(is.null(data_VAE$AA[[i]]$alphas)) return(NULL)
+  data_all[[i]]$A_true <- as_tibble(data_all[[i]]$A_true)
+  cif_s <- data_all[[i]]$.options$diff.cif.fraction
+  colnames(data_all[[i]]$A_true) <- paste0("arch", 1:ncol(data_all[[i]]$A_true))
+  obj <- rename_cols_based_on_distance(data_all[[i]]$A_true,as_tibble(data_VAE$AA[[i]]$alphas))
+  return(data.frame(dist = compute_euclidean_distance_df(data_all[[i]]$A_true,obj), ARI = compute_ARI_df(data_all[[i]]$A_true,obj), tool = "VAE", cif_s = cif_s))
+}) %>% do.call(rbind,.)
+
+
+
+data_MOFA_AA <- lapply(1:length(data_MOFA$AA), function(i) {
+  if(is.null(data_MOFA$AA[[i]]$alphas)) return(NULL)
+  cif_s <- data_all[[i]]$.options$diff.cif.fraction
+  data_all[[i]]$A_true <- as_tibble(data_all[[i]]$A_true)
+  colnames(data_all[[i]]$A_true) <- paste0("arch", 1:ncol(data_all[[i]]$A_true))
+  obj <- rename_cols_based_on_distance(data_all[[i]]$A_true,as_tibble(data_MOFA$AA[[i]]$alphas))
+
+  return(data.frame(dist = compute_euclidean_distance_df(data_all[[i]]$A_true,obj), ARI = compute_ARI_df(data_all[[i]]$A_true,obj), tool = "MOFA", cif_s = cif_s))
+}) %>% do.call(rbind,.)
+
+
+data_jive_AA <- lapply(1:length(data_jive$AA), function(i) {
+  if(is.null(data_jive$AA[[i]]$alphas)) return(NULL)
+  cif_s <- data_all[[i]]$.options$diff.cif.fraction
+  data_all[[i]]$A_true <- as_tibble(data_all[[i]]$A_true)
+  colnames(data_all[[i]]$A_true) <- paste0("arch", 1:ncol(data_all[[i]]$A_true))
+  obj <- rename_cols_based_on_distance(data_all[[i]]$A_true,as_tibble(data_jive$AA[[i]]$alphas))
+  return(data.frame(dist = compute_euclidean_distance_df(data_all[[i]]$A_true,obj), ARI = compute_ARI_df(data_all[[i]]$A_true,obj), tool = "JIVE", cif_s = cif_s))
+}) %>% do.call(rbind,.)
+
+
+data_intNMF_AA <- lapply(1:length(data_intNMF$AA), function(i) {
+  if(is.null(data_intNMF$AA[[i]]$alphas)) return(NULL)
+  cif_s <- data_all[[i]]$.options$diff.cif.fraction
+  data_all[[i]]$A_true <- as_tibble(data_all[[i]]$A_true)
+  colnames(data_all[[i]]$A_true) <- paste0("arch", 1:ncol(data_all[[i]]$A_true))
+  obj <- rename_cols_based_on_distance(data_all[[i]]$A_true,as_tibble(data_intNMF$AA[[i]]$alphas))
+  
+  return(data.frame(dist =compute_euclidean_distance_df(data_all[[i]]$A_true,obj), ARI = compute_ARI_df(data_all[[i]]$A_true,obj), tool = "intNMF", cif_s = cif_s))
+}) %>% do.call(rbind,.)
+
+data_deep_AA_fix <- lapply(1:length(data_deepAA$AA_Zfix), function(i) {
+  if(is.null(data_deepAA$AA_Zfix[[i]]$A)) return(NULL)
+  cif_s <- data_all[[i]]$.options$diff.cif.fraction
+  data_all[[i]]$A_true <- as_tibble(data_all[[i]]$A_true)
+  colnames(data_all[[i]]$A_true) <- paste0("arch", 1:ncol(data_all[[i]]$A_true))
+  obj <- rename_cols_based_on_distance(data_all[[i]]$A_true,as_tibble(data_deepAA$AA_Zfix[[i]]$A))
+
+  return(data.frame(dist = compute_euclidean_distance_df(data_all[[i]]$A_true,obj), ARI = compute_ARI_df(data_all[[i]]$A_true,obj), tool = "Keller et al", cif_s = cif_s))
+}) %>% do.call(rbind,.)
+
+data_deep_AA_free <- lapply(1:length(data_deepAA$AA_Zfree), function(i) {
+  if(is.null(data_deepAA$AA_Zfree[[i]]$A)) return(NULL)
+  cif_s <- data_all[[i]]$.options$diff.cif.fraction
+  data_all[[i]]$A_true <- as_tibble(data_all[[i]]$A_true)
+  colnames(data_all[[i]]$A_true) <- paste0("arch", 1:ncol(data_all[[i]]$A_true))
+  obj <- rename_cols_based_on_distance(data_all[[i]]$A_true,as_tibble(data_deepAA$AA_Zfree[[i]]$A))
+  return(dist = data.frame(dist = compute_euclidean_distance_df(data_all[[i]]$A_true,obj), ARI = compute_ARI_df(data_all[[i]]$A_true,obj), tool = "MIDAA", cif_s = cif_s))
+}) %>% do.call(rbind,.)
+
+
+plot_df_AA_nl <- do.call(rbind, list( data_MOFA_AA,data_jive_AA,  data_intNMF_AA, data_deep_AA_free, data_VAE_AA))
+```
+
+
+
+```{r}
+
+p1_nlinear_pareto <- plot_df_AA_nl %>% ggplot(., aes(y = dist, x = tidytext::reorder_within(tool, dist, cif_s),fill = reorder(tool, dist))) + geom_boxplot() + facet_wrap(~paste0("diff.cif.frac = ",cif_s), ncol = 3, scales = "free_x") + theme_classic() + Seurat::RotatedAxis() + scale_fill_manual("Tool", values = methods_colors)+ xlab("") + ylab("MSE") +
+    tidytext::scale_x_reordered()  + theme(text = element_text(family = "Arial", size = FONTSIZE+3),  legend.position = "right", axis.text.x = element_blank(), axis.ticks.x = element_blank())
+
+p2_nlinear_pareto <- plot_df_AA_nl %>% ggplot(., aes(y = ARI, x = tidytext::reorder_within(tool, ARI, cif_s),fill = reorder(tool, ARI))) + geom_boxplot() + facet_wrap(~paste0("diff.cif.frac = ",cif_s), ncol = 3, scales = "free_x") + theme_classic() + Seurat::RotatedAxis() +
+  scale_fill_manual("Tool",values = methods_colors) + xlab("") + ylab("ARI") +
+    tidytext::scale_x_reordered()  + theme(text = element_text(family = "Arial", size = FONTSIZE+ 3), legend.position = "right", axis.text.x = element_blank(), axis.ticks.x = element_blank()) 
+
+ggsave("../plots/phyla3_no_batch_nlpareto_rna_atac_dist.png",
+       ggpubr::ggarrange(p1_nlinear_pareto, p2_nlinear_pareto, ncol = 1, common.legend = TRUE, legend = "right") ,
+       device = "png", height = 8, width = 10, dpi = 300)
+ggsave("../plots/phyla3_no_batch_nlpareto_rna_atac_dist.pdf",
+       ggpubr::ggarrange(p1_nlinear_pareto, p2_nlinear_pareto, ncol = 1, common.legend = TRUE, legend = "right") ,
+       device = "pdf", height = 8, width = 10, dpi = 300)
+```
+
+```{r}
+plot_df_AA_nl2 <- do.call(rbind, list( data_deep_AA_fix, data_deep_AA_free ))
+
+```
+
+```{r}
+p1_nlinear_pareto2 <- plot_df_AA_nl2 %>% ggplot(., aes(y = dist, x = tidytext::reorder_within(tool, dist, cif_s),fill = tool)) + geom_boxplot() + 
+  facet_wrap(~paste0("diff.cif.frac = ",cif_s), ncol = 3,  scales = "free_x") + theme_classic() + Seurat::RotatedAxis() + xlab("")  +  ylab("MSE") + 
+    tidytext::scale_x_reordered() + scale_fill_manual("Tool", values = methods_colors) + theme(text = element_text(family = "Arial", size = FONTSIZE + 3), legend.position = "right", axis.text.x = element_blank(), axis.ticks.x = element_blank())
+ 
+
+p2_nlinear_pareto2 <- plot_df_AA_nl2 %>% ggplot(., aes(y = ARI, x = tidytext::reorder_within(tool, ARI, cif_s),fill = tool)) + geom_boxplot() +
+  facet_wrap(~paste0("diff.cif.frac = ",cif_s), ncol = 3, scales = "free_x") + theme_classic() + Seurat::RotatedAxis() + xlab("")  + ylab("ARI") + 
+  tidytext::scale_x_reordered()  + scale_fill_manual("Tool", values = methods_colors) + 
+  theme(text = element_text(family = "Arial", size = FONTSIZE + 3), legend.position = "right", axis.text.x = element_blank(), axis.ticks.x = element_blank()) 
+
+ggpubr::ggarrange(p1_nlinear_pareto2, p2_nlinear_pareto2, ncol = 1, common.legend = TRUE, legend = "bottom") %>% saveRDS("../plots/phyla3_no_batch_nlpareto_rna_atac_dist_keller_vs_MIDAA.rds")
+```
+
+
+```{r}
+left <- readRDS("../plots/phyla3_no_batch_trajectory_rna_atac_dist_keller_vs_MIDAA.rds") 
+middle <- readRDS("../plots/phyla3_no_batch_nlpareto_rna_atac_dist_keller_vs_MIDAA.rds") 
+right <- readRDS("../plots/phyla3_no_batch_pareto_rna_atac_dist_keller_vs_MIDAA.rds")
+
+plot_keller_vs_MIDAA <- ggpubr::ggarrange(left, middle, right, 
+                                           ncol = 3, common.legend = TRUE, 
+                                           legend = "bottom", labels = c("A", "B", "C"))
+
+
+ggsave("../plots/keller_vs_MIDAA.png",
+       plot_keller_vs_MIDAA ,
+       device = "png", height = 8, width = 18, dpi = 300)
+ggsave("../plots/keller_vs_MIDAA.pdf",
+       plot_keller_vs_MIDAA ,
+       device = "pdf", height = 8, width = 18, dpi = 300)
+```
+

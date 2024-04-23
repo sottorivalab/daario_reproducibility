@@ -1,2 +1,5 @@
-# daario_reproducibility
-A repository to store the code to reproduce the results in "Interpretable Multi-Omics Data Integration with Deep Archetypal Analysis"
+# MIDAA reproducibility
+A repository to store the code to reproduce the results in "Interpretable Multi-Omics Data Integration with Deep Archetypal Analysis" . Each direcatory has a different experiment, the simulations are done in R through reticulate while the real data examples are all in python, each directory has its own Readme with more information. The set of requirements to reproduce the analysis as done by us is in the `requirements.txt` file. The repository contains:
+* `simulations`: the directory contains the file to generate the simulations and anlyze them (mostly in R) 
+* `scG_and_T_cd34`: the directory contains the file to reproduce the analysis on CD34+ positive cells with the G&T technology from [this paper](https://www.nature.com/articles/s41588-022-01179-9)
+* `scMultiome_cd34`: the directory contains the file to reproduce the analysis on CD34+ positive cells with the 10x ATAC + GEX multiome technology from [this paper](https://www.nature.com/articles/s41587-019-0068-4)
